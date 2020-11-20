@@ -54,10 +54,26 @@ const generateId = () => {
 }
 
 app.post('/api/persons', (request, response) => {
-    if (!request.body.name) {
+    if (!request.body.name) { // puuttuuko nimi?
       return response.status(400).json({ 
         error: 'content missing' 
       })
+    }
+    if (!request.body.number) { // puuttuuko numero?
+        return response.status(400).json({ 
+          error: 'content missing' 
+        })
+    }
+    console.log("koko: ", persons.length)
+    console.log("lisättävä: ", request.body.name)
+    let i = 0
+    while(i < persons.length){ // nimi jo listalla?
+        if(request.body.name == persons[i].name){
+            return response.status(400).json({ 
+                error: 'name must be unique' 
+            })
+        }
+        i++
     }
     const person = {
       name: request.body.name,
