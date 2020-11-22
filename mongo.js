@@ -9,7 +9,6 @@ mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true, useFind
 const personSchema = new mongoose.Schema({
   name: String,
   number: String,
-  //id: Integer,
 })
 
 const Person = mongoose.model('Person', personSchema)
@@ -17,7 +16,6 @@ const Person = mongoose.model('Person', personSchema)
 const person = new Person({
   name: String,
   number: String,
-  //id: Integer,
 })
 
 person.save().then(response => {
