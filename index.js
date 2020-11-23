@@ -4,26 +4,20 @@
 require('dotenv').config()
 const express = require('express')
 const app = express()
+const bodyParser = require('body-parser')
 const Person = require('./models/person')
 var morgan = require('morgan')
 const cors = require('cors')
 const mongoose = require('mongoose')
 
-app.use(express.static('build'))
 app.use(express.json())
+app.use(express.static('build'))
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms'))
 app.use(cors())
-password = '...' // tätä ei GutHubiin
-const url = `mongodb+srv://fullstack:${password}@cluster0.khl6w.mongodb.net/puhelinluettelo?retryWrites=true&w=majority`
+app.use(bodyParser.json())
 
 morgan.token('/', function(request, response){
     return json.stringify(request.body)
-})
-
-mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false, useCreateIndex: true })
-const personSchema = new mongoose.Schema({
-  name: String,
-  number: String,
 })
 
 let persons = [
@@ -49,10 +43,6 @@ let persons = [
     }
 ]
 
-app.get('/', (req, res) => {
-    res.send('<p>Puhelinluettelo Backend</p>')
-})
-
 app.get('/api/persons', (req, res) => {
     Person.find({}).then(persons => {
         res.json(persons)
@@ -63,7 +53,7 @@ app.get('/api/persons/:id', (request, response, next) => {
     Person.findById(request.params.id)
         .then(person => {
             if(person){
-                response.json(person)
+                response.json(person.toJSON)
             } else{
                 response.status(404).end()
             }
@@ -84,13 +74,11 @@ const generateId = () => {
     return maxId + 1
 }
 
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
     const body = request.body
-    if (body.content === undefined){
-       return response.status(400).json({ error: 'contect missing'})
+    if (body.name === undefined){
+       return response.status(400).json({ error: 'name missing'})
     }
-    console.log("koko: ", persons.length)
-    console.log("lisättävä: ", request.body.name)
     let i = 0
     while(i < persons.length){ // nimi jo listalla?
         if(request.body.name == persons[i].name){
@@ -100,34 +88,45 @@ app.post('/api/persons', (request, response) => {
         }
         i++
     }
-    const person = {
-      name: body.name,
-      number: body.number,
-    }
-    person.save().then(savedPerson => {
-        response.json(savedPerson)
+    const person = new Person({
+        name: body.name,
+        number: body.number,
     })
+    person.save()
+        .then(savedPerson => {
+            response.json(savedPerson.toJSON)
+        })
+        .then(savedAndFormattedPerson => {
+            response.json(savedAndFormattedPerson)
+        })
+        .catch(error => next(error))
 })
 
 app.delete('/api/persons/:id', (request, response, next) => {
     Person.findByIdAndRemove(request.params.id)
-        .then(result => {
+        .then(() => {
             response.status(204).end()
         })
         .catch(error => next(error))
 })
 
+const unknownEndpoint = (request, response) => {
+    response.status(404).send({ error: 'unknown endpoint' })
+}
+app.use(unknownEndpoint)
+
 const errorHandler = (error, request, response, next) => {
     console.error(error.message)
     if (error.name === 'CastError') {
       return response.status(400).send({ error: 'malformatted id' })
+    } else if (error.name === 'ValidationError') {    
+        return response.status(400).json({ error: error.message })  
     }
     next(error)
 }
-
 app.use(errorHandler)
 
-const PORT = process.env.PORT // || 3001
+const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
 })
